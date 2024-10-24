@@ -2,7 +2,6 @@ import { ID, Query } from "appwrite";
 import { INewUser } from "@/types";
 import { account, appWriteConfig, avatars, databases } from "./config";
 
-
 export async function createUserAccount(user:INewUser) {
     try {
         const newAccount = await account.create(
@@ -39,12 +38,14 @@ export async function saveUserToDB(user:{
     imageUrl: string, // i might have to set this to string
     username?:string
 }) {
+    console.log(appWriteConfig.databaseId);
+       console.log(appWriteConfig.usersCollectionId);
     try{
        const newUser = await databases.createDocument(
         appWriteConfig.databaseId,
         appWriteConfig.usersCollectionId,
         ID.unique(), // why is this not working
-       { user}
+        user
        )
        return newUser;
     }catch(err){
@@ -70,6 +71,17 @@ export async function signInAccount(user: { email: string; password: string }) {
   }
 }
 
+
+// ============================== SIGN OUT
+export async function signoutAccount() {
+    try {
+        const session = await account.deleteSession('current');
+        return session;
+    } catch (error) {
+        console.log("Sign-out Error:", error);
+        return null;
+    }
+  }
   
   // ============================== GET ACCOUNT
   export async function getAccount() {
@@ -89,12 +101,10 @@ export async function signInAccount(user: { email: string; password: string }) {
     }
 }
 
-
 export async function getCurrentUser() {
   try {
     const currentAccount = await getAccount();
-    
-    if (!currentAccount) throw new Error("No account found");
+    if (!currentAccount) return null;
 
     const currentUser = await databases.listDocuments(
       appWriteConfig.databaseId,
@@ -105,10 +115,9 @@ export async function getCurrentUser() {
     if (!currentUser || !currentUser.documents.length) throw new Error("User not found");
 
     return currentUser.documents[0];
+
   } catch (error: any) {
     console.log("Error fetching current user:", error.message || error);
     return null;
   }
 }
-
-  
