@@ -12,3 +12,10 @@ export const signInValidationSchema = z.object({
   email:z.string().email({message:"Please provide a valid email address!"}),
   password:z.string().min(8,{message:"Password should be of minimum 8 characters"})
 })
+
+export const createPostValidationSchema = z.object({
+  caption:z.string().min(0).max(2200),
+  file: z.custom<File[]>(),
+  location: z.string().min(2).max(100),
+  tags: z.string()
+})
