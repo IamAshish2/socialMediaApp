@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/Appwrite/api";
 import { IContextType, IUser } from "@/types";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { createContext, useContext, useEffect, useState } from "react";
 
 export const INITIAL_USER = {
@@ -56,18 +56,20 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    // useEffect(() => {
-    //     checkAuthUser();
-    //     // const checkAuth = async () => {
-    //     //     const isAuthenticated = await checkAuthUser();
-    //     //     if (!isAuthenticated) {
-    //     //         navigate("/sign-in");
-    //     //     }
-    //     // };
+    useEffect(() => {
+        async function checkAuthentication() {
+            const sessions = localStorage.getItem('session') || localStorage.getItem('cookieFallback');
+            if (!sessions) {
+                navigate('sign-in');
+            }
 
-    //     // // Only call checkAuth once when the component mounts
-    //     // checkAuth();
-    // }, [navigate]);
+            const checkIsAuthenticated = await checkAuthUser();
+            if (!checkIsAuthenticated) {
+                navigate('sign-in');
+            }
+        }
+        checkAuthentication();
+    }, [isLoading, navigate]);
 
     const value = {
         user,
@@ -81,7 +83,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {isLoading ? children : <p>Loading...</p>} {/* Optionally show a loader */}
+            {!isLoading ? children : <p>Loading...</p>} {/* Optionally show a loader */}
         </AuthContext.Provider>
     );
 };
