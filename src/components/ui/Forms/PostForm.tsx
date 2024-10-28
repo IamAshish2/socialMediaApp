@@ -7,21 +7,24 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, } from 
 import { Textarea } from "../textarea"
 import FileUploader from "../shared/FileUploader"
 import { Models } from "appwrite"
-import { useCreatePost } from "@/lib/React-Query/queriesAndMutations"
+import { useCreatePost, useUpdatePost } from "@/lib/React-Query/queriesAndMutations"
 import { useUserContext } from "@/context/AuthContext"
-import {  useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useNavigate } from "react-router-dom"
 
 
+// the post is comming as a prop when updating the post
 type PostFormProps = {
-    post?: Models.Document // models from appwrite
+    post?: Models.Document, // models from appwrite,
+    action: 'create' | 'update'
 }
 
-const PostForm = ({ post }: PostFormProps) => {
-    const {user} = useUserContext();
-    const {toast} = useToast();
+const PostForm = ({ post, action }: PostFormProps) => {
+    const { user } = useUserContext();
+    const { toast } = useToast();
     const navigate = useNavigate();
-    const {mutateAsync:createPost,isSuccess} = useCreatePost();
+    const { mutateAsync: createPost, isSuccess: isCreatingPost } = useCreatePost();
+    const { mutateAsync: updatePost, isSuccess } = useUpdatePost();
 
     const form = useForm<z.infer<typeof createPostValidationSchema>>({
         resolver: zodResolver(createPostValidationSchema),
@@ -34,17 +37,37 @@ const PostForm = ({ post }: PostFormProps) => {
     })
 
     async function onSubmit(values: z.infer<typeof createPostValidationSchema>) {
-        console.log(values)
-        // create a new post for the user
-        const newPost = await createPost({
-            ...values,
-            userId: user.id
-        });
+        if (post && action === 'update') {
+            if (post?.$id) {
+                // send a object of type IUPDATEPOST to update the post via tanstack query to api
+                const updatedPost = await updatePost({
+                    postId: post?.$id,
+                    caption: values.caption,
+                    imageUrl: post?.imageUrl,
+                    imageId: post?.$id,
+                    file: values.file,
+                    location: values.location,
+                    tags: values.tags
+                });
 
-        if(!newPost){
-            toast({title:""});
+                if (!updatedPost) {
+                    toast({ title: "sorry! could not update the post at the moment" });
+                }
+                navigate('/');
+            }
+        } else {
+
+            // create a new post for the user
+            const newPost = await createPost({
+                ...values,
+                userId: user.id
+            });
+
+            if (!newPost && !isCreatingPost) {
+                toast({ title: "sorry! could not create a post at the moment" });
+            }
+            navigate('/');
         }
-        navigate('/');
     }
 
     return (
