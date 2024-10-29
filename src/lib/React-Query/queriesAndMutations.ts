@@ -1,8 +1,6 @@
-import {
-    useQuery,useMutation,useQueryClient,useInfiniteQuery
-} from '@tanstack/react-query'
-import { createNewPost, createUserAccount, deleteSavedPost, getCurrentUser, getRecentPosts, likePost, savePost, signInAccount, signoutAccount } from '../Appwrite/api';
-import { INewPost, INewUser } from '@/types';
+import {useQuery,useMutation,useQueryClient,useInfiniteQuery} from '@tanstack/react-query'
+import { createNewPost, createUserAccount, deletePost, deleteSavedPost, getCurrentUser, getInfinitePosts, getPostById, getRecentPosts, likePost, savePost, searchPosts, signInAccount, signoutAccount, updatePost } from '../Appwrite/api';
+import { INewPost, INewUser, IUpdatePost } from '@/types';
 import { QUERY_KEYS } from './queryKeys';
 
 
@@ -119,5 +117,59 @@ export const useGetCurrentUser = () => {
     return useQuery ({
         queryKey:[QUERY_KEYS.GET_CURRENT_USER],
         queryFn: () => getCurrentUser()
+    })
+}
+
+export const useGetPostById = (postId:string) => {
+    return useQuery({
+        queryKey:[QUERY_KEYS.GET_POST_BY_ID,postId],
+        queryFn: () => getPostById(postId),
+        enabled: !!postId
+    })
+}
+
+export const useUpdatePost = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (post:IUpdatePost) => updatePost(post),
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey:[QUERY_KEYS.GET_RECENT_POSTS]
+            })
+        }
+    })
+}
+
+export const useDeletePost = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (postId:string) => deletePost(postId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey:[QUERY_KEYS.GET_RECENT_POSTS]
+            })
+        }
+    })
+}
+
+// yet to understand
+export const useGetPosts = () => {
+    return useInfiniteQuery({
+        queryKey:[QUERY_KEYS.GET_INFINITE_POSTS],
+        queryFn : getInfinitePosts,
+        getNextPageParam : (lastPage) => {
+            if(lastPage && lastPage.documents.length === 0) return null;
+            const lastId = lastPage.documents[lastPage?.documents.length - 1].$id;
+            return lastId;
+        }
+    })
+}
+
+// yet to understand
+export const useSearchPosts = (serachTerm:string) => {
+    return useQuery({
+        queryKey : [QUERY_KEYS.SEARCH_POSTS,serachTerm],
+        queryFn : () => searchPosts(serachTerm),
+        enabled : !!serachTerm
     })
 }
