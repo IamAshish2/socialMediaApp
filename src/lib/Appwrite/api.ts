@@ -1,5 +1,5 @@
 import { AppwriteException, ID, Query } from "appwrite";
-import { INewPost, INewUser } from "@/types";
+import { INewPost, INewUser, IUpdatePost } from "@/types";
 import { account, appWriteConfig, avatars, databases, storage } from "./config";
 
 export async function createUserAccount(user:INewUser) {
@@ -292,4 +292,124 @@ export async function getPostById(postId:string) {
     );
     if(!result) throw Error;
     return result;
+}
+
+export async function updatePost(post:IUpdatePost){
+    // check if the user has uploaded a new file
+    const hasFileToUpload = post.file.length > 0; 
+
+   try {
+    let image = {
+        imageUrl : post.imageUrl,
+        imageId : post.imageId
+    }
+
+    if(hasFileToUpload){
+        // if the user has uploaded a new file, Upload the image to storage
+        const uploadedFile = await uploadImageToStorage(post.file[0]);
+        if(!uploadedFile){
+            throw Error;
+        }
+        // get the file url
+        const uploadedFileUrl = await getFilePreview(uploadedFile.$id);
+       
+        if(!uploadedFileUrl){
+            deleteFile(uploadedFile.$id);
+            throw Error;
+        }
+        // update the image
+        image = {
+            ...image,
+            imageUrl:uploadedFileUrl,
+            imageId:uploadedFile.$id
+        }
+    }
+
+      // convert the tags into an array
+      const tags = post.tags?.trim().replace(/(^\s+|\s+$)/g,'').split(',') || [];
+
+    const updatedPost = await databases.updateDocument(
+        appWriteConfig.databaseId,
+        appWriteConfig.postsCollectionId,
+        post.postId,
+        {
+            caption:post.caption,
+            imageUrl: image.imageUrl,
+            imageId: image.imageId,
+            location:post.location,
+            tags:tags
+        }, 
+    );
+    if(!updatedPost) {
+        await deleteFile(post.imageId);
+        throw Error;
+    }
+    return updatedPost;
+   } catch (error) {
+    console.log(error);
+    
+   }
+
+}
+
+export async function deletePost(postId:string){
+    try {
+        // delete Document returns a promise 
+        const isDeleted = await databases.deleteDocument(
+            appWriteConfig.databaseId,
+            appWriteConfig.postsCollectionId,
+            postId
+        )
+    
+        if(!isDeleted) {
+            throw Error;
+        }
+        
+        return isDeleted && true;
+    } catch (error) {
+        console.log(error);
+        
+    }
+}
+
+export async function getInfinitePosts({pageParam}: {pageParam:number}) {
+    const queries : any[] = [Query.orderDesc('$updatedAt'),Query.limit(10)];
+    
+    if(pageParam){
+        // skip the first 10 posts
+        queries.push(Query.cursorAfter(pageParam.toString()));
+    }
+
+    try {
+        const posts = await databases.listDocuments(
+            appWriteConfig.databaseId,
+            appWriteConfig.postsCollectionId,
+            queries
+        )
+
+        if(!posts) throw Error;
+
+        return posts;
+    } catch (error) {
+        console.log(error);
+        
+    }
+}
+
+export async function searchPosts(searchTerm:string) {
+    
+    try {
+        const posts = await databases.listDocuments(
+            appWriteConfig.databaseId,
+            appWriteConfig.postsCollectionId,
+            [Query.search('caption',searchTerm)]
+        )
+
+        if(!posts) throw Error;
+
+        return posts;
+    } catch (error) {
+        console.log(error);
+        
+    }
 }
